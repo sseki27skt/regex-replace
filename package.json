@@ -58,7 +58,8 @@
       {
         "id": "regexRuleView",
         "name": "ルール一覧",
-        "type": "webview"
+        "type": "webview",
+        "icon": "resources/icon.svg"
       }
     ]
   }
