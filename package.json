@@ -2,7 +2,7 @@
   "name": "regex-replace",
   "displayName": "Regex Replace",
   "description": "",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "engines": {
     "vscode": "^1.104.0"
   },
@@ -15,6 +15,8 @@
     "type": "git",
     "url": "https://github.com/sseki27skt/Regex-Replace.git"
   },
+  "license": "MIT",
+  "icon": "resources/icon.png",
   "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
