@@ -1,0 +1,85 @@
+{
+  "name": "regex-replace",
+  "displayName": "Regex Replace",
+  "description": "",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.104.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  
+  "publisher": "sseki27skt",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sseki27skt/Regex-Replace.git"
+  },
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+      "command": "batch-regex-replace.execute",
+      "title": "保存済みルールで一括置換を実行"
+    },
+    {
+      "command": "batch-regex-replace.addRule",
+      "title": "置換ルールを新規追加"
+    },
+    {
+      "command": "batch-regex-replace.deleteRule",
+      "title": "置換ルールを削除"
+    },
+    {
+      "command": "batch-regex-replace.moveRuleUp",
+      "title": "置換ルールを上に移動"
+    },
+    {
+      "command": "batch-regex-replace.moveRuleDown",
+      "title": "置換ルールを下に移動"
+    },
+    {
+      "command": "batch-regex-replace.viewRules",
+      "title": "保存済みルールを一覧表示"
+    }
+    ],
+  "viewsContainers": {
+    "activitybar": [
+      {
+        "id": "batch-regex-replace-explorer",
+        "title": "一括置換ルール",
+        "icon": "resources/icon.svg"
+      }
+    ]
+  },
+  "views": {
+    "batch-regex-replace-explorer": [
+      {
+        "id": "regexRuleView",
+        "name": "ルール一覧",
+        "type": "webview"
+      }
+    ]
+  }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.104.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "22.x",
+    "@typescript-eslint/eslint-plugin": "^8.45.0",
+    "@typescript-eslint/parser": "^8.45.0",
+    "eslint": "^9.36.0",
+    "typescript": "^5.9.3",
+    "@vscode/test-cli": "^0.0.11",
+    "@vscode/test-electron": "^2.5.2"
+  }
+}
