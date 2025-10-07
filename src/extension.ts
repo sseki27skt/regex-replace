@@ -156,6 +156,9 @@ class RuleWebviewViewProvider implements vscode.WebviewViewProvider {
 			let newRules: ReplaceRule[];
 
 			switch (data.type) {
+				case 'getRules':
+					this.updateRuleList();
+					return;
 				case 'addRule':
 					newRules = [...rules, { find: data.find, replace: data.replace, flags: 'g' }];
 					await this._context.globalState.update(STORAGE_KEY, newRules);

@@ -78,6 +78,8 @@
                 break;
         }
     });
+        vscode.postMessage({ type: 'getRules' });
+
 
     function updateRuleList(rules) {
         ruleList.innerHTML = '';
