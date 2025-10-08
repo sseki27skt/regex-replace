@@ -443,7 +443,16 @@ class RuleWebviewViewProvider implements vscode.WebviewViewProvider {
                         <button id="cancel-edit-btn" class="vscode-button vscode-button--secondary" style="display: none;">キャンセル</button>
                     </div>
 				</div>
-				<button id="execute-btn" class="vscode-button vscode-button--secondary">現在のエディタで置換を実行</button>
+				<div style="margin-bottom:8px;">
+					<button id="execute-btn" class="vscode-button vscode-button--secondary">現在のエディタで置換を実行</button>
+				</div>
+				<details id="search-panel" style="margin-bottom:12px;">
+					<summary>ルール検索</summary>
+					<div style="display:flex; gap:8px; align-items:center; margin-top:8px;">
+						<input type="search" id="rule-search" class="vscode-input" placeholder="ルールを検索 (find/replace/flags)" />
+						<button id="clear-search-btn" class="vscode-button">クリア</button>
+					</div>
+				</details>
 				<ul id="rule-list"></ul>
 				<script src="${scriptUri}"></script>
 			</body>

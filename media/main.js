@@ -186,11 +186,17 @@
         contextMenu.style.display = 'none';
     });
 
+    let allRules = [];
+
+    const searchInput = document.getElementById('rule-search');
+    const clearSearchBtn = document.getElementById('clear-search-btn');
+
     window.addEventListener('message', event => {
         const message = event.data;
         switch (message.type) {
             case 'updateRules':
-                updateRuleList(message.rules);
+                allRules = message.rules || [];
+                applyFilterAndRender();
                 break;
             case 'editRule':
                 enterEditMode(message.index, message.rule);
@@ -300,6 +306,23 @@
                 dragSrcIndex = null;
             });
         });
+    }
+
+    function applyFilterAndRender() {
+        const q = (searchInput && searchInput.value || '').trim().toLowerCase();
+        if (!q) { updateRuleList(allRules); return; }
+        const filtered = allRules.filter(r => {
+            const hay = `${r.find} ${r.replace} ${r.flags || ''}`.toLowerCase();
+            return hay.indexOf(q) !== -1;
+        });
+        updateRuleList(filtered);
+    }
+
+    if (searchInput) {
+        searchInput.addEventListener('input', () => { applyFilterAndRender(); });
+    }
+    if (clearSearchBtn) {
+        clearSearchBtn.addEventListener('click', () => { if (searchInput) { searchInput.value = ''; applyFilterAndRender(); searchInput.focus(); } });
     }
    window.addEventListener('keydown', (event) => {
     // Escapeキーが押され、かつ編集モードのときにキャンセル処理を呼ぶ

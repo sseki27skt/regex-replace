@@ -79,6 +79,30 @@ label {
     background-color: var(--vscode-button-secondaryHoverBackground);
 }
 
+#rule-search {
+    max-width: 220px;
+    padding: 6px 8px;
+}
+#clear-search-btn {
+    padding: 6px 8px;
+}
+
+/* collapsible search panel */
+details#search-panel {
+    background: var(--vscode-sideBar-background);
+    border: 1px solid var(--vscode-settings-focusedBorder);
+    padding: 8px;
+    border-radius: 4px;
+}
+details#search-panel summary {
+    list-style: none;
+    cursor: pointer;
+    font-weight: 600;
+}
+details#search-panel[open] {
+    padding-bottom: 12px;
+}
+
 #rule-list {
     list-style: none;
     padding: 0;
