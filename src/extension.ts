@@ -9,6 +9,7 @@ interface ReplaceRule {
 	find: string;
 	replace: string;
 	flags: string;
+	enabled?: boolean;
 }
 
 // 拡張機能のメイン処理
@@ -39,7 +40,7 @@ export function activate(context: vscode.ExtensionContext) {
 		const text = editor.document.getText();
 		
 		rules.forEach((rule, index) => {
-			if (!rule.find) { return; } // ★修正点: {}を追加
+			if (!rule.find || rule.enabled === false) { return; } // skip empty or disabled rules
 
 			const color = highlightColors[index % highlightColors.length];
 			const decorationType = vscode.window.createTextEditorDecorationType({
@@ -139,6 +140,7 @@ export function activate(context: vscode.ExtensionContext) {
 		let currentText = editor.document.getText();
 		try {
 			for (const rule of rules) {
+				if (rule.enabled === false) { continue; }
 				currentText = currentText.replace(new RegExp(rule.find, rule.flags), rule.replace);
 			}
 		} catch(e) {
@@ -201,7 +203,29 @@ class RuleWebviewViewProvider implements vscode.WebviewViewProvider {
 				return;
 			}
 
+			// (named sets feature removed)
+
 			switch (data.type) {
+				case 'enableRule':
+					{
+						const idx = data.index;
+						const current = this._context.globalState.get<ReplaceRule[]>(STORAGE_KEY, []);
+						if (typeof idx === 'number' && current[idx]) {
+							current[idx].enabled = true;
+							await this._context.globalState.update(STORAGE_KEY, current);
+						}
+					}
+					break;
+				case 'disableRule':
+					{
+						const idx = data.index;
+						const current = this._context.globalState.get<ReplaceRule[]>(STORAGE_KEY, []);
+						if (typeof idx === 'number' && current[idx]) {
+							current[idx].enabled = false;
+							await this._context.globalState.update(STORAGE_KEY, current);
+						}
+					}
+					break;
 				case 'getRules':
 					this.updateRuleList();
 					return;

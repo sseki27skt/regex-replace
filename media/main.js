@@ -10,6 +10,8 @@
     const executeBtn = document.getElementById('execute-btn');
     const ruleList = document.getElementById('rule-list');
 
+    // (sets UI removed)
+
     // inline message area for validation/preview errors
     let messageArea = document.getElementById('message-area');
     if (!messageArea) {
@@ -169,9 +171,13 @@
             const displayReplace = escapeHtml(rule.replace);
             const displayFlags = escapeHtml(rule.flags || '');
 
+            const checkedAttr = (rule.enabled === false) ? '' : 'checked';
             li.innerHTML = `
                 <div class="rule-content">
-                    <span class="rule-find" title="Find: /${displayFind}/${displayFlags}">Find: /${displayFind}/${displayFlags}</span>
+                    <label style="display:flex; align-items:center; gap:8px;">
+                        <input type="checkbox" class="enable-checkbox" data-index="${index}" ${checkedAttr} />
+                        <span class="rule-find" title="Find: /${displayFind}/${displayFlags}">Find: /${displayFind}/${displayFlags}</span>
+                    </label>
                     <span class="rule-replace" title="Replace: '${displayReplace}'">Replace: '${displayReplace}'</span>
                 </div>
                 <div class="rule-actions">
@@ -190,6 +196,15 @@
                 const type = e.currentTarget.classList.contains('delete-btn') ? 'deleteRule' :
                              e.currentTarget.classList.contains('up-btn') ? 'moveRuleUp' : 'moveRuleDown';
                 vscode.postMessage({ type, index });
+            });
+        });
+
+        // enable/disable handlers
+        document.querySelectorAll('.enable-checkbox').forEach(cb => {
+            cb.addEventListener('change', (e) => {
+                const idx = parseInt(e.currentTarget.dataset.index, 10);
+                const checked = e.currentTarget.checked;
+                vscode.postMessage({ type: checked ? 'enableRule' : 'disableRule', index: idx });
             });
         });
     }
