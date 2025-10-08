@@ -227,6 +227,52 @@ class RuleWebviewViewProvider implements vscode.WebviewViewProvider {
 		webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
 
 		webviewView.webview.onDidReceiveMessage(async data => {
+			// handle copy requests from webview
+			if (data.type === 'copyRule') {
+				const idx = data.index;
+				const rules = this._context.globalState.get<ReplaceRule[]>(STORAGE_KEY, []);
+				if (typeof idx === 'number' && rules[idx]) {
+					const r = rules[idx];
+					const text = `find: ${r.find}\nreplace: ${r.replace}\nflags: ${r.flags || ''}`;
+					try {
+						await vscode.env.clipboard.writeText(text);
+						vscode.window.showInformationMessage(`ルール #${idx + 1} をクリップボードにコピーしました。`);
+					} catch (e) {
+						vscode.window.showErrorMessage('クリップボードへのコピーに失敗しました。');
+					}
+				}
+				return;
+			}
+			if (data.type === 'copyAllRules') {
+				const rules = this._context.globalState.get<ReplaceRule[]>(STORAGE_KEY, []);
+				if (!rules || rules.length === 0) {
+					vscode.window.showInformationMessage('コピーするルールがありません。');
+					return;
+				}
+				const text = rules.map((r, i) => `${i + 1}:\nfind: ${r.find}\nreplace: ${r.replace}\nflags: ${r.flags || ''}`).join('\n\n');
+				try {
+					await vscode.env.clipboard.writeText(text);
+					vscode.window.showInformationMessage(`${rules.length}件のルールをクリップボードにコピーしました。`);
+				} catch (e) {
+					vscode.window.showErrorMessage('クリップボードへのコピーに失敗しました。');
+				}
+				return;
+			}
+
+			if (data.type === 'duplicateRule') {
+				const idx = data.index;
+				const rules = this._context.globalState.get<ReplaceRule[]>(STORAGE_KEY, []);
+				if (typeof idx === 'number' && rules[idx]) {
+					const copy = { ...rules[idx] };
+					const newRules = [...rules];
+					newRules.splice(idx + 1, 0, copy);
+					await this._context.globalState.update(STORAGE_KEY, newRules);
+					vscode.window.showInformationMessage(`ルール #${idx + 1} を複製しました。`);
+					this.updateRuleList();
+					vscode.commands.executeCommand('_batch-regex-replace.updateDecorations');
+				}
+				return;
+			}
 			const rules = this._context.globalState.get<ReplaceRule[]>(STORAGE_KEY, []);
 			let newRules: ReplaceRule[];
 

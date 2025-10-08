@@ -125,6 +125,67 @@
         }
     });
 
+    // Context menu support for copying rules
+    // create a simple floating menu element
+    const contextMenu = document.createElement('div');
+    contextMenu.id = 'rule-context-menu';
+    contextMenu.style.position = 'fixed';
+    contextMenu.style.display = 'none';
+    contextMenu.style.zIndex = 1000;
+    contextMenu.innerHTML = `
+        <div class="ctx-item" data-action="copy">ルールをコピー</div>
+        <div class="ctx-item" data-action="duplicate">複製</div>
+        <div class="ctx-item" data-action="copyAll">全てコピー</div>
+    `;
+    document.body.appendChild(contextMenu);
+
+    ruleList.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        const li = e.target.closest('.rule-item');
+        const rect = ruleList.getBoundingClientRect();
+        const x = e.clientX;
+        const y = e.clientY;
+        // attach dataset for clicked item if any
+        if (li) {
+            contextMenu.dataset.index = li.dataset.index;
+        } else {
+            delete contextMenu.dataset.index;
+        }
+        contextMenu.style.left = `${x}px`;
+        contextMenu.style.top = `${y}px`;
+        contextMenu.style.display = 'block';
+    });
+
+    // hide context menu on click elsewhere or escape
+    window.addEventListener('click', (e) => {
+        if (contextMenu.style.display === 'block') {
+            contextMenu.style.display = 'none';
+        }
+    });
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') { contextMenu.style.display = 'none'; }
+    });
+
+    contextMenu.addEventListener('click', (e) => {
+        const item = e.target.closest('.ctx-item');
+        if (!item) { return; }
+        const action = item.dataset.action;
+        if (action === 'copy') {
+            const idx = typeof contextMenu.dataset.index !== 'undefined' ? parseInt(contextMenu.dataset.index, 10) : undefined;
+            if (typeof idx === 'number') {
+                vscode.postMessage({ type: 'copyRule', index: idx });
+            }
+        } else if (action === 'duplicate') {
+            const idx = typeof contextMenu.dataset.index !== 'undefined' ? parseInt(contextMenu.dataset.index, 10) : undefined;
+            if (typeof idx === 'number') {
+                vscode.postMessage({ type: 'duplicateRule', index: idx });
+            }
+        } else if (action === 'copyAll') {
+            vscode.postMessage({ type: 'copyAllRules' });
+        }
+        contextMenu.style.display = 'none';
+    });
+
     window.addEventListener('message', event => {
         const message = event.data;
         switch (message.type) {

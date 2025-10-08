@@ -142,3 +142,22 @@ label {
 ::-webkit-scrollbar-thumb { background-color: var(--vscode-scrollbarSlider-background); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background-color: var(--vscode-scrollbarSlider-hoverBackground); }
 ::-webkit-scrollbar-thumb:active { background-color: var(--vscode-scrollbarSlider-activeBackground); }
+
+/* context menu for rule list */
+#rule-context-menu {
+    background: var(--vscode-editor-background);
+    border: 1px solid var(--vscode-settings-focusedBorder);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    border-radius: 4px;
+    padding: 4px 0;
+    min-width: 160px;
+}
+#rule-context-menu .ctx-item {
+    padding: 6px 12px;
+    cursor: pointer;
+    color: var(--vscode-foreground);
+    font-size: 0.95em;
+}
+#rule-context-menu .ctx-item:hover {
+    background: var(--vscode-list-hoverBackground);
+}
