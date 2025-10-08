@@ -430,18 +430,16 @@ class RuleWebviewViewProvider implements vscode.WebviewViewProvider {
 			</head>
 			<body>
 				<div class="input-container">
-					<div>
-						<label for="find-input">検索 (正規表現):</label>
-						<input type="text" id="find-input" class="vscode-input" placeholder="例: /(hello|hi)/">
+					<div class="input-line">
+						<input type="text" id="find-input" class="vscode-input" placeholder="検索">
 					</div>
-					<div>
-						<label for="replace-input">置換:</label>
-						<input type="text" id="replace-input" class="vscode-input" placeholder="例: こんにちは">
+					<div class="input-line">
+						<input type="text" id="replace-input" class="vscode-input" placeholder="置換">
 					</div>
-                    <div class="button-group">
-                        <button id="add-rule-btn" class="vscode-button">ルールを追加</button>
-                        <button id="cancel-edit-btn" class="vscode-button vscode-button--secondary" style="display: none;">キャンセル</button>
-                    </div>
+	                    <div class="button-group">
+	                        <button id="add-rule-btn" class="vscode-button">ルールを追加</button>
+	                        <button id="cancel-edit-btn" class="vscode-button vscode-button--secondary" style="display: none;">キャンセル</button>
+	                    </div>
 				</div>
 				<div style="margin-bottom:8px;">
 					<button id="execute-btn" class="vscode-button vscode-button--secondary">現在のエディタで置換を実行</button>

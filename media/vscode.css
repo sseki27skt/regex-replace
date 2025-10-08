@@ -103,6 +103,16 @@ details#search-panel[open] {
     padding-bottom: 12px;
 }
 
+/* compact input row for find/replace */
+.input-line {
+    display: block;
+    margin-bottom: 8px;
+}
+.input-line .vscode-input {
+    width: 100%;
+    padding: 8px 10px;
+}
+
 #rule-list {
     list-style: none;
     padding: 0;
