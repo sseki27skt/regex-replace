@@ -2,7 +2,7 @@
   "name": "regex-replace",
   "displayName": "Regex Replace",
   "description": "",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "engines": {
     "vscode": "^1.104.0"
   },

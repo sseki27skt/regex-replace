@@ -225,6 +225,7 @@
             const li = document.createElement('li');
             li.className = 'rule-item';
             li.dataset.index = index;
+            li.setAttribute('draggable', 'true');
 
             // minimal escape for display
             const escapeHtml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -266,6 +267,37 @@
                 const idx = parseInt(e.currentTarget.dataset.index, 10);
                 const checked = e.currentTarget.checked;
                 vscode.postMessage({ type: checked ? 'enableRule' : 'disableRule', index: idx });
+            });
+        });
+
+        // drag & drop handlers
+        let dragSrcIndex = null;
+        document.querySelectorAll('.rule-item[draggable="true"]').forEach(item => {
+            item.addEventListener('dragstart', (e) => {
+                dragSrcIndex = parseInt(item.dataset.index, 10);
+                e.dataTransfer.effectAllowed = 'move';
+                try { e.dataTransfer.setData('text/plain', String(dragSrcIndex)); } catch (err) { }
+                item.classList.add('dragging');
+            });
+            item.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                item.classList.add('dragover');
+            });
+            item.addEventListener('dragleave', () => {
+                item.classList.remove('dragover');
+            });
+            item.addEventListener('drop', (e) => {
+                e.preventDefault();
+                item.classList.remove('dragover');
+                const targetIndex = parseInt(item.dataset.index, 10);
+                if (dragSrcIndex !== null && dragSrcIndex !== targetIndex) {
+                    vscode.postMessage({ type: 'moveRule', from: dragSrcIndex, to: targetIndex });
+                }
+            });
+            item.addEventListener('dragend', () => {
+                item.classList.remove('dragging');
+                dragSrcIndex = null;
             });
         });
     }

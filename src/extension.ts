@@ -273,6 +273,23 @@ class RuleWebviewViewProvider implements vscode.WebviewViewProvider {
 				}
 				return;
 			}
+
+			if (data.type === 'moveRule') {
+				const from = data.from;
+				const to = data.to;
+				const rules = this._context.globalState.get<ReplaceRule[]>(STORAGE_KEY, []);
+				if (typeof from === 'number' && typeof to === 'number' && rules[from]) {
+					const newRules = [...rules];
+					const [moved] = newRules.splice(from, 1);
+					// insert before the target index; if from < to, adjust index because of removal
+					const insertIndex = from < to ? to : to;
+					newRules.splice(insertIndex, 0, moved);
+					await this._context.globalState.update(STORAGE_KEY, newRules);
+					this.updateRuleList();
+					vscode.commands.executeCommand('_batch-regex-replace.updateDecorations');
+				}
+				return;
+			}
 			const rules = this._context.globalState.get<ReplaceRule[]>(STORAGE_KEY, []);
 			let newRules: ReplaceRule[];
 
