@@ -10,6 +10,16 @@
     const executeBtn = document.getElementById('execute-btn');
     const ruleList = document.getElementById('rule-list');
 
+    // inline message area for validation/preview errors
+    let messageArea = document.getElementById('message-area');
+    if (!messageArea) {
+        messageArea = document.createElement('div');
+        messageArea.id = 'message-area';
+        messageArea.style.marginTop = '8px';
+        messageArea.style.color = 'var(--vscode-inputValidation-errorForeground)';
+        messageArea.style.fontSize = '0.9em';
+    }
+
     let editingIndex = -1;
 
     function enterEditMode(index, rule) {
@@ -19,6 +29,12 @@
         cancelEditBtn.style.display = 'inline-block';
         editingIndex = index;
         findInput.focus();
+        // send preview for current rule being edited
+        if (messageArea && messageArea.parentNode === null) {
+            const inputContainer = document.querySelector('.input-container');
+            if (inputContainer) { inputContainer.appendChild(messageArea); }
+        }
+        vscode.postMessage({ type: 'preview', find: rule.find, flags: rule.flags });
     }
 
     function exitEditMode() {
@@ -27,28 +43,68 @@
         addRuleBtn.textContent = 'ルールを追加';
         cancelEditBtn.style.display = 'none';
         editingIndex = -1;
+        // clear preview when exiting edit mode
+        vscode.postMessage({ type: 'clearPreview' });
     }
 
     addRuleBtn.addEventListener('click', () => {
-        const findValue = findInput.value;
+        const rawFind = findInput.value.trim();
         const replaceValue = replaceInput.value;
 
-        if (findValue) {
+        if (rawFind) {
+            // parse /pattern/flags or plain pattern
+            let pattern = rawFind;
+            let flags = 'g';
+            const m = rawFind.match(/^\/(.*)\/(\w*)$/);
+            if (m) {
+                pattern = m[1];
+                flags = m[2] || 'g';
+            }
+
             if (editingIndex > -1) {
                 vscode.postMessage({
                     type: 'saveRule',
                     index: editingIndex,
-                    rule: { find: findValue, replace: replaceValue, flags: 'g' }
+                    rule: { find: pattern, replace: replaceValue, flags }
                 });
             } else {
                 vscode.postMessage({
                     type: 'addRule',
-                    find: findValue,
-                    replace: replaceValue
+                    find: pattern,
+                    replace: replaceValue,
+                    flags: flags
                 });
             }
             exitEditMode();
         }
+    });
+
+    // live preview while typing
+    let previewTimer = null;
+    findInput.addEventListener('input', () => {
+        const raw = findInput.value.trim();
+        if (!raw) {
+            vscode.postMessage({ type: 'clearPreview' });
+            return;
+        }
+        // parse same as on submit
+        const m = raw.match(/^\/(.*)\/(\w*)$/);
+        const pattern = m ? m[1] : raw;
+        const flags = m ? (m[2] || 'g') : 'g';
+
+        // throttle preview messages
+        if (previewTimer) {
+            clearTimeout(previewTimer);
+        }
+        previewTimer = setTimeout(() => {
+            // clear any previous inline message when sending a new preview
+            if (messageArea) { messageArea.textContent = ''; }
+            if (messageArea && messageArea.parentNode === null) {
+                const inputContainer = document.querySelector('.input-container');
+                if (inputContainer) { inputContainer.appendChild(messageArea); }
+            }
+            vscode.postMessage({ type: 'preview', find: pattern, flags });
+        }, 150);
     });
 
     cancelEditBtn.addEventListener('click', () => {
@@ -76,6 +132,20 @@
             case 'editRule':
                 enterEditMode(message.index, message.rule);
                 break;
+            case 'previewInvalid':
+                if (messageArea && messageArea.parentNode === null) {
+                    const inputContainer = document.querySelector('.input-container');
+                    if (inputContainer) { inputContainer.appendChild(messageArea); }
+                }
+                if (messageArea) { messageArea.textContent = `Preview error: ${message.message}`; }
+                break;
+            case 'validationError':
+                if (messageArea && messageArea.parentNode === null) {
+                    const inputContainer = document.querySelector('.input-container');
+                    if (inputContainer) { inputContainer.appendChild(messageArea); }
+                }
+                if (messageArea) { messageArea.textContent = `Error: ${message.message}`; }
+                break;
         }
     });
         vscode.postMessage({ type: 'getRules' });
@@ -93,10 +163,16 @@
             li.className = 'rule-item';
             li.dataset.index = index;
 
+            // minimal escape for display
+            const escapeHtml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            const displayFind = escapeHtml(rule.find);
+            const displayReplace = escapeHtml(rule.replace);
+            const displayFlags = escapeHtml(rule.flags || '');
+
             li.innerHTML = `
                 <div class="rule-content">
-                    <span class="rule-find" title="Find: /${rule.find}/${rule.flags}">Find: /${rule.find}/${rule.flags}</span>
-                    <span class="rule-replace" title="Replace: '${rule.replace}'">Replace: '${rule.replace}'</span>
+                    <span class="rule-find" title="Find: /${displayFind}/${displayFlags}">Find: /${displayFind}/${displayFlags}</span>
+                    <span class="rule-replace" title="Replace: '${displayReplace}'">Replace: '${displayReplace}'</span>
                 </div>
                 <div class="rule-actions">
                     <button class="action-btn up-btn" data-index="${index}" title="上に移動">↑</button>

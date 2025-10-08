@@ -3,6 +3,7 @@
 import * as vscode from 'vscode';
 
 const STORAGE_KEY = 'batchRegexReplaceRules';
+const PREVIEW_KEY = 'batchRegexReplacePreview';
 
 interface ReplaceRule {
 	find: string;
@@ -50,7 +51,9 @@ export function activate(context: vscode.ExtensionContext) {
 			const decorations: vscode.DecorationOptions[] = [];
 			
 			try {
-				const regex = new RegExp(rule.find, 'g');
+				// Respect flags stored in the rule. Ensure global flag for highlighting so all matches are found.
+				const flags = rule.flags && rule.flags.length ? (rule.flags.includes('g') ? rule.flags : `${rule.flags}g`) : 'g';
+				const regex = new RegExp(rule.find, flags);
 				let match;
 				while ((match = regex.exec(text))) {
 					const startPos = editor.document.positionAt(match.index);
@@ -61,6 +64,29 @@ export function activate(context: vscode.ExtensionContext) {
 				editor.setDecorations(decorationType, decorations);
 			} catch (e) { /* 不正な正規表現は無視 */ }
 		});
+
+		// handle live-preview pattern from webview (stored in workspaceState)
+		const preview = context.workspaceState.get<{ find: string; flags?: string }>(PREVIEW_KEY);
+		if (preview && preview.find) {
+			try {
+				const pflags = preview.flags && preview.flags.length ? (preview.flags.includes('g') ? preview.flags : `${preview.flags}g`) : 'g';
+				const previewRegex = new RegExp(preview.find, pflags);
+				const previewDecorations: vscode.DecorationOptions[] = [];
+				let m;
+				while ((m = previewRegex.exec(text))) {
+					const startPos = editor.document.positionAt(m.index);
+					const endPos = editor.document.positionAt(m.index + m[0].length);
+					previewDecorations.push({ range: new vscode.Range(startPos, endPos), hoverMessage: `Preview: /${preview.find}/` });
+				}
+				// create a distinct decoration type for preview (more prominent)
+				const previewDecorationType = vscode.window.createTextEditorDecorationType({
+					backgroundColor: 'rgba(255, 235, 59, 0.35)',
+					border: '1px dashed rgba(255, 193, 7, 0.9)'
+				});
+				decorationTypes.push(previewDecorationType);
+				editor.setDecorations(previewDecorationType, previewDecorations);
+			} catch (e) { /* invalid preview regex - ignore silently */ }
+		}
 	}
 
 	function triggerUpdateDecorations(throttle = false) {
@@ -155,13 +181,44 @@ class RuleWebviewViewProvider implements vscode.WebviewViewProvider {
 			const rules = this._context.globalState.get<ReplaceRule[]>(STORAGE_KEY, []);
 			let newRules: ReplaceRule[];
 
+			// preview messages from webview
+			if (data.type === 'preview') {
+				// validate preview pattern and inform webview if invalid
+				try {
+					new RegExp(data.find, data.flags || 'g');
+				} catch (e) {
+					const msg = e instanceof Error ? e.message : String(e);
+					this._view?.webview.postMessage({ type: 'previewInvalid', message: msg });
+					return;
+				}
+				await this._context.workspaceState.update(PREVIEW_KEY, { find: data.find, flags: data.flags });
+				vscode.commands.executeCommand('_batch-regex-replace.updateDecorations');
+				return;
+			}
+			if (data.type === 'clearPreview') {
+				await this._context.workspaceState.update(PREVIEW_KEY, undefined);
+				vscode.commands.executeCommand('_batch-regex-replace.updateDecorations');
+				return;
+			}
+
 			switch (data.type) {
 				case 'getRules':
 					this.updateRuleList();
 					return;
 				case 'addRule':
-					newRules = [...rules, { find: data.find, replace: data.replace, flags: 'g' }];
-					await this._context.globalState.update(STORAGE_KEY, newRules);
+					{
+						const flags = data.flags || 'g';
+						// validate regex
+						try {
+							new RegExp(data.find, flags);
+						} catch (e) {
+							vscode.window.showErrorMessage('追加しようとしたルールの正規表現が無効です。');
+							this._view?.webview.postMessage({ type: 'validationError', message: '追加しようとしたルールの正規表現が無効です。' });
+							return;
+						}
+						newRules = [...rules, { find: data.find, replace: data.replace, flags }];
+						await this._context.globalState.update(STORAGE_KEY, newRules);
+					}
 					break;
 				case 'deleteRule':
 					newRules = rules.filter((_, i) => i !== data.index);
@@ -189,9 +246,20 @@ class RuleWebviewViewProvider implements vscode.WebviewViewProvider {
 					return;
 				}
 				case 'saveRule':
-					newRules = [...rules];
-					newRules[data.index] = data.rule;
-					await this._context.globalState.update(STORAGE_KEY, newRules);
+					{
+						const rule = data.rule as ReplaceRule;
+						const flags = rule.flags || 'g';
+						try {
+							new RegExp(rule.find, flags);
+						} catch (e) {
+							vscode.window.showErrorMessage('保存しようとしたルールの正規表現が無効です。');
+							this._view?.webview.postMessage({ type: 'validationError', message: '保存しようとしたルールの正規表現が無効です。' });
+							return;
+						}
+						newRules = [...rules];
+						newRules[data.index] = { find: rule.find, replace: rule.replace, flags };
+						await this._context.globalState.update(STORAGE_KEY, newRules);
+					}
 					break;
 				case 'executeReplace':
 					vscode.commands.executeCommand('batch-regex-replace.execute');
