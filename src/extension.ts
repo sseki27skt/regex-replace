@@ -20,11 +20,13 @@ export function activate(context: vscode.ExtensionContext) {
 	let activeEditor = vscode.window.activeTextEditor;
 	let timeout: NodeJS.Timeout | undefined = undefined;
 	let decorationTypes: vscode.TextEditorDecorationType[] = [];
-	
+	// Reusable map for rule -> decoration type to avoid creating many types repeatedly
+	const decorationTypeMap: Map<number, vscode.TextEditorDecorationType> = new Map();
+
 	const highlightColors = [
 		'rgba(255, 215, 0, 0.3)', 'rgba(135, 206, 235, 0.3)',
 		'rgba(144, 238, 144, 0.3)', 'rgba(255, 182, 193, 0.3)',
-		'rgba(255, 165, 0, 0.3)',   'rgba(173, 216, 230, 0.3)',
+		'rgba(255, 165, 0, 0.3)', 'rgba(173, 216, 230, 0.3)',
 	];
 
 	function updateDecorations() {
@@ -33,37 +35,61 @@ export function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 
+		// Clear previous decorations and dispose types that are no longer used
 		decorationTypes.forEach(decorationType => editor.setDecorations(decorationType, []));
+		// do not dispose types here; we manage lifecycle in decorationTypeMap
 		decorationTypes = [];
 
 		const rules = context.globalState.get<ReplaceRule[]>(STORAGE_KEY, []);
-		const text = editor.document.getText();
-		
+		// Dispose decoration types that are no longer needed (e.g., rule was removed)
+		for (const key of Array.from(decorationTypeMap.keys())) {
+			if (key >= rules.length) {
+				const dt = decorationTypeMap.get(key);
+				if (dt) {
+					dt.dispose();
+					decorationTypeMap.delete(key);
+				}
+			}
+		}
+		// To reduce work on large files, only scan visible ranges (with a small margin)
+		const visibleRanges = editor.visibleRanges.length ? editor.visibleRanges : [new vscode.Range(editor.document.positionAt(0), editor.document.positionAt(0))];
+		const margin = 5000; // characters to include before/after visible range to avoid missing context
+		const docText = editor.document.getText();
 		rules.forEach((rule, index) => {
-			if (!rule.find || rule.enabled === false) { return; } // skip empty or disabled rules
+			if (!rule.find || rule.enabled === false) { return; }
 
 			const color = highlightColors[index % highlightColors.length];
-			const decorationType = vscode.window.createTextEditorDecorationType({
-				backgroundColor: color,
-				border: `1px solid ${color.replace('0.3', '1')}`,
-			});
+			let decorationType = decorationTypeMap.get(index);
+			if (!decorationType) {
+				decorationType = vscode.window.createTextEditorDecorationType({
+					backgroundColor: color,
+					border: `1px solid ${color.replace('0.3', '1')}`,
+				});
+				decorationTypeMap.set(index, decorationType);
+			}
 			decorationTypes.push(decorationType);
 
 			const decorations: vscode.DecorationOptions[] = [];
-			
 			try {
-				// Respect flags stored in the rule. Ensure global flag for highlighting so all matches are found.
 				const flags = rule.flags && rule.flags.length ? (rule.flags.includes('g') ? rule.flags : `${rule.flags}g`) : 'g';
 				const regex = new RegExp(rule.find, flags);
-				let match;
-				while ((match = regex.exec(text))) {
-					const startPos = editor.document.positionAt(match.index);
-					const endPos = editor.document.positionAt(match.index + match[0].length);
-					const decoration = { range: new vscode.Range(startPos, endPos), hoverMessage: `Rule #${index + 1}: /${rule.find}/` };
-					decorations.push(decoration);
+				// scan only around visible ranges
+				for (const vr of visibleRanges) {
+					const startOffset = Math.max(0, editor.document.offsetAt(vr.start) - margin);
+					const endOffset = Math.min(docText.length, editor.document.offsetAt(vr.end) + margin);
+					const slice = docText.substring(startOffset, endOffset);
+					let match;
+					while ((match = regex.exec(slice))) {
+						const globalIndex = startOffset + match.index;
+						const startPos = editor.document.positionAt(globalIndex);
+						const endPos = editor.document.positionAt(globalIndex + match[0].length);
+						decorations.push({ range: new vscode.Range(startPos, endPos), hoverMessage: `Rule #${index + 1}: /${rule.find}/` });
+						// avoid infinite loops for zero-length matches
+						if (match.index === regex.lastIndex) { regex.lastIndex++; }
+					}
 				}
 				editor.setDecorations(decorationType, decorations);
-			} catch (e) { /* 不正な正規表現は無視 */ }
+			} catch (e) { /* invalid regex - ignore */ }
 		});
 
 		// handle live-preview pattern from webview (stored in workspaceState)
@@ -73,11 +99,32 @@ export function activate(context: vscode.ExtensionContext) {
 				const pflags = preview.flags && preview.flags.length ? (preview.flags.includes('g') ? preview.flags : `${preview.flags}g`) : 'g';
 				const previewRegex = new RegExp(preview.find, pflags);
 				const previewDecorations: vscode.DecorationOptions[] = [];
-				let m;
-				while ((m = previewRegex.exec(text))) {
-					const startPos = editor.document.positionAt(m.index);
-					const endPos = editor.document.positionAt(m.index + m[0].length);
-					previewDecorations.push({ range: new vscode.Range(startPos, endPos), hoverMessage: `Preview: /${preview.find}/` });
+				let matchCount = 0;
+				const maxMatches = 500; // limit number of preview highlights
+
+				for (const vr of visibleRanges) {
+					const startOffset = Math.max(0, editor.document.offsetAt(vr.start) - margin);
+					const endOffset = Math.min(docText.length, editor.document.offsetAt(vr.end) + margin);
+					const slice = docText.substring(startOffset, endOffset);
+					let m;
+					while ((m = previewRegex.exec(slice))) {
+						// avoid zero-length match infinite loop
+						if (m[0].length === 0) {
+							if (previewRegex.lastIndex >= slice.length) { break; }
+							previewRegex.lastIndex++;
+							continue;
+						}
+						const globalIndex = startOffset + m.index;
+						const startPos = editor.document.positionAt(globalIndex);
+						const endPos = editor.document.positionAt(globalIndex + m[0].length);
+						previewDecorations.push({ range: new vscode.Range(startPos, endPos), hoverMessage: `Preview: /${preview.find}/` });
+						matchCount++;
+						if (matchCount >= maxMatches) {
+							vscode.window.showInformationMessage(`多数のマッチが見つかったため、最初の${maxMatches}件のみハイライトしました。`);
+							break;
+						}
+					}
+					if (matchCount >= maxMatches) { break; }
 				}
 				// create a distinct decoration type for preview (more prominent)
 				const previewDecorationType = vscode.window.createTextEditorDecorationType({
@@ -96,7 +143,7 @@ export function activate(context: vscode.ExtensionContext) {
 			timeout = undefined;
 		}
 		if (throttle) {
-			timeout = setTimeout(updateDecorations, 500);
+			timeout = setTimeout(updateDecorations, 3000);
 		} else {
 			updateDecorations();
 		}
@@ -127,23 +174,23 @@ export function activate(context: vscode.ExtensionContext) {
 	const provider = new RuleWebviewViewProvider(context.extensionUri, context);
 	context.subscriptions.push(
 		vscode.window.registerWebviewViewProvider(RuleWebviewViewProvider.viewType, provider));
-	
+
 	const executeCommand = vscode.commands.registerCommand('batch-regex-replace.execute', async () => {
-        const rules = context.globalState.get<ReplaceRule[]>(STORAGE_KEY, []);
+		const rules = context.globalState.get<ReplaceRule[]>(STORAGE_KEY, []);
 		if (rules.length === 0) {
 			vscode.window.showWarningMessage('実行するルールがありません。');
 			return;
 		}
 		const editor = vscode.window.activeTextEditor;
 		if (!editor) { return; } // ★修正点: {}を追加
-        
+
 		let currentText = editor.document.getText();
 		try {
 			for (const rule of rules) {
 				if (rule.enabled === false) { continue; }
 				currentText = currentText.replace(new RegExp(rule.find, rule.flags), rule.replace);
 			}
-		} catch(e) {
+		} catch (e) {
 			vscode.window.showErrorMessage('正規表現の処理中にエラーが発生しました。');
 			return;
 		}
@@ -262,7 +309,7 @@ class RuleWebviewViewProvider implements vscode.WebviewViewProvider {
 						await this._context.globalState.update(STORAGE_KEY, newRules);
 					}
 					break;
-                case 'requestEditRule': {
+				case 'requestEditRule': {
 					const ruleToEdit = rules[data.index];
 					if (ruleToEdit) {
 						this._view?.webview.postMessage({ type: 'editRule', index: data.index, rule: ruleToEdit });
@@ -289,11 +336,11 @@ class RuleWebviewViewProvider implements vscode.WebviewViewProvider {
 					vscode.commands.executeCommand('batch-regex-replace.execute');
 					return;
 			}
-			
+
 			this.updateRuleList();
 			vscode.commands.executeCommand('_batch-regex-replace.updateDecorations');
 		});
-		
+
 		this.updateRuleList();
 	}
 
