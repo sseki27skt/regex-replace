@@ -189,7 +189,7 @@
     let allRules = [];
 
     const searchInput = document.getElementById('rule-search');
-    const clearSearchBtn = document.getElementById('clear-search-btn');
+    const clearSearchBtn = document.getElementById('rule-search-clear');
 
     window.addEventListener('message', event => {
         const message = event.data;
@@ -322,7 +322,15 @@
         searchInput.addEventListener('input', () => { applyFilterAndRender(); });
     }
     if (clearSearchBtn) {
-        clearSearchBtn.addEventListener('click', () => { if (searchInput) { searchInput.value = ''; applyFilterAndRender(); searchInput.focus(); } });
+        clearSearchBtn.addEventListener('click', (e) => { e.stopPropagation(); e.preventDefault(); if (searchInput) { searchInput.value = ''; applyFilterAndRender(); searchInput.focus(); } });
+    }
+    // toggle indicator for details summary
+    const searchPanel = document.getElementById('search-panel');
+    const searchToggle = document.querySelector('.search-toggle');
+    if (searchPanel && searchToggle) {
+        const updateToggle = () => { searchToggle.textContent = searchPanel.open ? '▼' : '▶'; };
+        searchPanel.addEventListener('toggle', updateToggle);
+        updateToggle();
     }
    window.addEventListener('keydown', (event) => {
     // Escapeキーが押され、かつ編集モードのときにキャンセル処理を呼ぶ

@@ -99,6 +99,16 @@ details#search-panel summary {
     cursor: pointer;
     font-weight: 600;
 }
+
+details#search-panel summary .search-toggle {
+    display: inline-block;
+    width: 1.2em;
+    text-align: center;
+    margin-right: 6px;
+}
+details#search-panel summary .search-summary-text {
+    vertical-align: middle;
+}
 details#search-panel[open] {
     padding-bottom: 12px;
 }
@@ -111,6 +121,31 @@ details#search-panel[open] {
 .input-line .vscode-input {
     width: 100%;
     padding: 8px 10px;
+}
+
+/* search input wrapper with inline clear button */
+.search-wrapper {
+    position: relative;
+}
+.search-wrapper .vscode-input {
+    padding-right: 28px; /* space for clear button */
+}
+.search-clear {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    border: none;
+    background: transparent;
+    color: var(--vscode-input-foreground);
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+.search-clear:hover {
+    background: var(--vscode-list-hoverBackground);
 }
 
 #rule-list {

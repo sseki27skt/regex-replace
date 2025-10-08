@@ -445,10 +445,10 @@ class RuleWebviewViewProvider implements vscode.WebviewViewProvider {
 					<button id="execute-btn" class="vscode-button vscode-button--secondary">現在のエディタで置換を実行</button>
 				</div>
 				<details id="search-panel" style="margin-bottom:12px;">
-					<summary>ルール検索</summary>
-					<div style="display:flex; gap:8px; align-items:center; margin-top:8px;">
+					<summary><span class="search-toggle">▶</span><span class="search-summary-text">ルール検索</span></summary>
+					<div class="search-wrapper" style="margin-top:8px;">
 						<input type="search" id="rule-search" class="vscode-input" placeholder="ルールを検索 (find/replace/flags)" />
-						<button id="clear-search-btn" class="vscode-button">クリア</button>
+						<button id="rule-search-clear" class="search-clear" title="クリア" aria-label="クリア">×</button>
 					</div>
 				</details>
 				<ul id="rule-list"></ul>
